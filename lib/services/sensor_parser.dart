@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:math' as math;
 import '../models/sensor_data.dart';
+import 'logger.dart';
 
 /// Parser for Muse v3 sensor data according to protocol specification
 class SensorDataParser {
@@ -10,8 +11,20 @@ class SensorDataParser {
   static const double magSensitivity = 0.146156088; // 4 Gauss
   static const double hdrSensitivity = 49.0; // 100g
 
+  static int _packetCounter = 0;
+
   /// Parse sensor data packet based on acquisition mode
-  static SensorData parsePacket(List<int> data, int acquisitionMode) {
+  /// [showDetailedLogs] - показывать ли детальные логи (отключаем для buffered mode)
+  static SensorData parsePacket(List<int> data, int acquisitionMode, {bool showDetailedLogs = true}) {
+    _packetCounter++;
+    
+    if (showDetailedLogs) {
+      Logger.debug('═══ PACKET #$_packetCounter ═══');
+      Logger.debug('Raw data length: ${data.length} bytes');
+      Logger.debug('Acquisition mode: 0x${acquisitionMode.toRadixString(16)}');
+      Logger.debug('Raw hex: ${data.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+    }
+    
     final buffer = Uint8List.fromList(data);
     int offset = 0;
 
@@ -36,60 +49,86 @@ class SensorDataParser {
 
     // Parse based on acquisition mode bits
     if ((acquisitionMode & AcquisitionMode.gyroscope) != 0) {
+      if (showDetailedLogs) Logger.debug('[Offset $offset] Parsing Gyroscope...');
       gyro = _parseGyroscope(buffer, offset);
+      if (showDetailedLogs) Logger.debug('  Gyro: $gyro');
       offset += 6;
     }
 
     if ((acquisitionMode & AcquisitionMode.accelerometer) != 0) {
+      if (showDetailedLogs) Logger.debug('[Offset $offset] Parsing Accelerometer...');
       accel = _parseAccelerometer(buffer, offset);
+      if (showDetailedLogs) Logger.debug('  Accel: $accel');
       offset += 6;
     }
 
     if ((acquisitionMode & AcquisitionMode.magnetometer) != 0) {
+      if (showDetailedLogs) Logger.debug('[Offset $offset] Parsing Magnetometer...');
       mag = _parseMagnetometer(buffer, offset);
+      if (showDetailedLogs) Logger.debug('  Mag: $mag');
       offset += 6;
     }
 
     if ((acquisitionMode & AcquisitionMode.hdrAccel) != 0) {
+      if (showDetailedLogs) Logger.debug('[Offset $offset] Parsing HDR Accelerometer...');
       hdrAccel = _parseHDRAccelerometer(buffer, offset);
+      if (showDetailedLogs) Logger.debug('  HDR Accel: $hdrAccel');
       offset += 6;
     }
 
     if ((acquisitionMode & AcquisitionMode.orientation) != 0) {
+      if (showDetailedLogs) Logger.debug('[Offset $offset] Parsing Quaternion...');
       orientation = _parseQuaternion(buffer, offset);
+      if (showDetailedLogs) Logger.debug('  Quat: $orientation');
       offset += 6;
     }
 
     if ((acquisitionMode & AcquisitionMode.timestamp) != 0) {
+      if (showDetailedLogs) Logger.debug('[Offset $offset] Parsing Timestamp...');
       timestamp = _parseTimestamp(buffer, offset);
+      if (showDetailedLogs) Logger.debug('  Time: $timestamp');
       offset += 6;
     }
 
     if ((acquisitionMode & AcquisitionMode.tempHumidity) != 0) {
+      if (showDetailedLogs) Logger.debug('[Offset $offset] Parsing Temp/Humidity...');
       final tempHum = _parseTempHumidity(buffer, offset);
       temperature = tempHum['temp'];
       humidity = tempHum['humidity'];
+      if (showDetailedLogs) Logger.debug('  Temp: $temperature°C, Humidity: $humidity%');
       offset += 6;
     }
 
     if ((acquisitionMode & AcquisitionMode.tempPressure) != 0) {
+      if (showDetailedLogs) Logger.debug('[Offset $offset] Parsing Temp/Pressure...');
       final tempPress = _parseTempPressure(buffer, offset);
       temperature = tempPress['temp'];
       pressure = tempPress['pressure'];
+      if (showDetailedLogs) Logger.debug('  Temp: $temperature°C, Pressure: $pressure hPa');
       offset += 6;
     }
 
     if ((acquisitionMode & AcquisitionMode.range) != 0) {
+      if (showDetailedLogs) Logger.debug('[Offset $offset] Parsing Range/Light...');
       final rangeLight = _parseRangeLight(buffer, offset);
       range = rangeLight['range'];
       lightIntensity = rangeLight['light'];
+      if (showDetailedLogs) Logger.debug('  Range: $range mm, Light: $lightIntensity lux');
       offset += 6;
     }
 
     if ((acquisitionMode & AcquisitionMode.mad) != 0) {
+      if (showDetailedLogs) Logger.debug('[Offset $offset] Parsing MAD...');
       final mad = _parseMAD(buffer, offset);
       madLevel = mad['level'];
       madArmed = mad['armed'];
+      if (showDetailedLogs) Logger.debug('  MAD Level: $madLevel, Armed: $madArmed');
+      offset += 6;
+    }
+    
+    if ((acquisitionMode & AcquisitionMode.sound) != 0) {
+      if (showDetailedLogs) Logger.debug('[Offset $offset] Parsing Sound...');
+      // Sound parsing if needed
       offset += 6;
     }
 
@@ -115,8 +154,21 @@ class SensorDataParser {
     }
 
     if ((acquisitionMode & AcquisitionMode.coGas) != 0) {
+      Logger.debug('[Offset $offset] Parsing CO gas...');
       co = _parseCO(buffer, offset);
+      Logger.debug('  CO: $co ppm');
       offset += 6;
+    }
+
+    // Валидация размера пакета (только если показываем детальные логи)
+    if (showDetailedLogs) {
+      Logger.debug('Final offset: $offset bytes (expected: ${data.length})');
+      if (offset != data.length) {
+        Logger.warning('⚠️ SIZE MISMATCH! Parsed: $offset bytes, Actual: ${data.length} bytes');
+      } else {
+        Logger.success('✓ Packet size OK');
+      }
+      Logger.info('Parsed packet #$_packetCounter successfully');
     }
 
     return SensorData(

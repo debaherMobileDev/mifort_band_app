@@ -96,7 +96,7 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan for Devices'),
+        title: const Text('Beta app Muse V3'),
         actions: [
           if (_isScanning)
             const Padding(

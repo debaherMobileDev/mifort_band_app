@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/ble_service.dart';
 import '../services/ble_error_handler.dart';
+import '../services/logger.dart';
 import '../models/sensor_data.dart';
 import 'logs_screen.dart';
 
@@ -55,10 +56,15 @@ class _StreamingScreenState extends State<StreamingScreen> {
   
   /// Автоматический запуск streaming при открытии экрана
   Future<void> _autoStartStreaming() async {
-    // Discover services
+    // ✅ ВЫЗЫВАЕМ discoverServices() т.к. пользователь приходит СРАЗУ из ScanScreen!
+    // (DeviceScreen пропускается в текущем флоу)
     final servicesFound = await _bleService.discoverServices();
-    if (!servicesFound) return;
+    if (!servicesFound) {
+      Logger.error('Failed to discover services in StreamingScreen');
+      return;
+    }
     
+    // Даём время на инициализацию
     await Future.delayed(const Duration(milliseconds: 500));
     
     // Читаем базовые данные
@@ -103,12 +109,50 @@ class _StreamingScreenState extends State<StreamingScreen> {
       if (firmware != null && mounted) {
         setState(() => _firmwareVersion = firmware);
       }
+      
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      // ✨ КРИТИЧНО: Читаем Hardware Skills чтобы знать какие датчики есть!
+      Logger.info('═══ CHECKING DEVICE CAPABILITIES ═══');
+      final skills = await _bleService.readHardwareSkills();
+      if (skills != null) {
+        Logger.success('Hardware skills retrieved successfully');
+      }
     }
   }
   
   /// Запуск streaming
   Future<void> _startStreaming() async {
-    final success = await _bleService.startComprehensiveStreaming();
+    // ✨ ПРОБУЕМ ПОЛНЫЙ РЕЖИМ (60 bytes) - ВСЕ ДАТЧИКИ!
+    Logger.info('═══ ATTEMPTING FULL MODE (60 bytes) ═══');
+    var success = await _bleService.startComprehensiveStreaming(); // TEMP/PRESS версия
+    
+    if (!success) {
+      Logger.warning('FULL mode (with Pressure) failed, trying ALT mode (with Humidity)...');
+      success = await _bleService.startComprehensiveWithHumidity(); // TEMP/HUM версия
+    }
+    
+    if (!success) {
+      Logger.warning('60-byte modes failed, trying MEDIUM (30 bytes)...');
+      success = await _bleService.startMediumStreaming(); // IMU+MAG+TIME+TEMP/HUM = 30 bytes
+    }
+    
+    if (!success) {
+      Logger.warning('Medium mode failed, trying BASIC (24 bytes)...');
+      success = await _bleService.startBasicStreaming(); // IMU+MAG+TIME = 24 bytes
+    }
+    
+    if (!success) {
+      Logger.warning('Basic mode failed, trying MINIMAL (18 bytes)...');
+      success = await _bleService.startMinimalStreaming(); // IMU+TIME = 18 bytes
+    }
+    
+    if (!success) {
+      Logger.error('❌ ALL MODES FAILED!');
+      return;
+    }
+    
+    Logger.success('🎉 STREAMING STARTED SUCCESSFULLY!');
 
     if (success && mounted) {
       setState(() {
@@ -120,12 +164,22 @@ class _StreamingScreenState extends State<StreamingScreen> {
   }
 
   void _setupDataListener() {
+    Logger.info('Setting up data listener for streaming screen...');
     _dataSubscription = _bleService.sensorDataStream.listen((data) {
+      Logger.info('🎯 UI: Received sensor data in StreamingScreen');
+      Logger.debug('  Has Gyro: ${data.gyroscope != null}');
+      Logger.debug('  Has Accel: ${data.accelerometer != null}');
+      Logger.debug('  Has Mag: ${data.magnetometer != null}');
+      Logger.debug('  Has Time: ${data.timestamp != null}');
+      
       if (mounted) {
         setState(() {
           _latestData = data;
           _packetsReceived++;
+          Logger.success('✓ UI Updated! Total packets: $_packetsReceived');
         });
+      } else {
+        Logger.warning('⚠️ UI not mounted, skipping update');
       }
     });
   }
@@ -144,7 +198,7 @@ class _StreamingScreenState extends State<StreamingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Muse v3 Dashboard'),
+        title: const Text('Beta app Muse V3'),
         actions: [
           if (_isStreaming)
             const Padding(
@@ -397,49 +451,8 @@ class _StreamingScreenState extends State<StreamingScreen> {
             
             const Divider(height: 24),
             
-            // Air Quality
-            _buildSimpleDataRow(
-              'CO₂',
-              _latestData?.co2?.toDouble(),
-              'ppm',
-              Icons.co2,
-              Colors.brown,
-            ),
-            _buildSimpleDataRow(
-              'VOC',
-              _latestData?.vocPpb?.toDouble(),
-              'ppb',
-              Icons.air,
-              Colors.lime,
-            ),
-            _buildSimpleDataRow(
-              'PM1.0',
-              _latestData?.pm1?.toDouble(),
-              'μg/m³',
-              Icons.grain,
-              Colors.grey,
-            ),
-            _buildSimpleDataRow(
-              'PM2.5',
-              _latestData?.pm25?.toDouble(),
-              'μg/m³',
-              Icons.grain,
-              Colors.amber,
-            ),
-            _buildSimpleDataRow(
-              'PM10',
-              _latestData?.pm10?.toDouble(),
-              'μg/m³',
-              Icons.grain,
-              Colors.orange,
-            ),
-            _buildSimpleDataRow(
-              'CO (Carbon Monoxide)',
-              _latestData?.co,
-              'ppm',
-              Icons.warning,
-              Colors.red,
-            ),
+            // ❌ AQI sensors (CO2, VOC, PM, CO) - НЕ ПОДДЕРЖИВАЮТСЯ этим устройством
+            // Удалены из UI т.к. устройство не имеет AQI expansion board
             
             const Divider(height: 24),
             

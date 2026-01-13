@@ -357,7 +357,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'View live data from all sensors:\n🎯 Gyro • Accel • Mag\n🌡️ Temp • Humidity • Pressure\n💡 Light • Range • Air Quality',
+                          'View live data from all sensors:\n🎯 Gyro • Accel • Mag • HDR\n🌡️ Temp • Humidity • Pressure\n💡 Light • Range • Man Down',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.white70,
