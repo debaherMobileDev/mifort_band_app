@@ -181,7 +181,7 @@ class BleService {
               characteristic.lastValueStream.listen((value) {
                 if (value.isNotEmpty) {
                   if (_isStreaming) {
-                    Logger.debug('Data packet received: ${value.length} bytes');
+                    // ✨ НЕ логируем каждый пакет - слишком много спама
                     _handleSensorData(value);
                   } else {
                     Logger.debug('Data packet IGNORED (not streaming): ${value.length} bytes');
@@ -193,15 +193,15 @@ class BleService {
             }
           }
           
-          Logger.info('═══ DISCOVERY RESULT ═══');
-          Logger.info('Command Char: ${_commandCharacteristic != null ? "✓" : "✗"}');
-          Logger.info('Data Char: ${_dataCharacteristic != null ? "✓" : "✗"}');
+          Logger.info('═══ DISCOVERY RESULT ═══', pinned: true);
+          Logger.info('Command Char: ${_commandCharacteristic != null ? "✓" : "✗"}', pinned: true);
+          Logger.info('Data Char: ${_dataCharacteristic != null ? "✓" : "✗"}', pinned: true);
 
           if (_commandCharacteristic == null) {
-            Logger.error('Command characteristic NOT found!');
+            Logger.error('Command characteristic NOT found!', null, true);
           }
           if (_dataCharacteristic == null) {
-            Logger.error('Data characteristic NOT found!');
+            Logger.error('Data characteristic NOT found!', null, true);
           }
 
           return _commandCharacteristic != null;

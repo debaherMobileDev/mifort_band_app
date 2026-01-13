@@ -6,28 +6,40 @@ class Logger {
   static const String _prefix = '[BLE]';
   static final LogCollector _collector = LogCollector();
 
-  static void info(String message) {
+  static void info(String message, {bool pinned = false}) {
     final fullMessage = 'ℹ️  $message';
     if (kDebugMode) {
       debugPrint('$_prefix $fullMessage');
     }
-    _collector.info(message);
+    if (pinned) {
+      _collector.pinnedInfo(message);
+    } else {
+      _collector.info(message);
+    }
   }
 
-  static void success(String message) {
+  static void success(String message, {bool pinned = false}) {
     final fullMessage = '✓ $message';
     if (kDebugMode) {
       debugPrint('$_prefix $fullMessage');
     }
-    _collector.success(message);
+    if (pinned) {
+      _collector.pinnedSuccess(message);
+    } else {
+      _collector.success(message);
+    }
   }
 
-  static void error(String message, [Object? error]) {
+  static void error(String message, [Object? error, bool pinned = false]) {
     final fullMessage = '✗ $message${error != null ? ': $error' : ''}';
     if (kDebugMode) {
       debugPrint('$_prefix $fullMessage');
     }
-    _collector.error(message);
+    if (pinned) {
+      _collector.pinnedError(message);
+    } else {
+      _collector.error(message);
+    }
   }
 
   static void warning(String message) {

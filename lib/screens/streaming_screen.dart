@@ -57,8 +57,8 @@ class _StreamingScreenState extends State<StreamingScreen> {
   /// Автоматический запуск streaming при открытии экрана
   Future<void> _autoStartStreaming() async {
     // ═══════════════════════════════════════════════
-    Logger.info('🚀 APP VERSION: 2.0 - FULL SENSOR SUPPORT');
-    Logger.info('═══════════════════════════════════════════');
+    Logger.info('🚀 APP VERSION: 2.0 - FULL SENSOR SUPPORT', pinned: true);
+    Logger.info('═══════════════════════════════════════════', pinned: true);
     
     // ✅ ВЫЗЫВАЕМ discoverServices() т.к. пользователь приходит СРАЗУ из ScanScreen!
     // (DeviceScreen пропускается в текущем флоу)
@@ -128,7 +128,7 @@ class _StreamingScreenState extends State<StreamingScreen> {
   /// Запуск streaming
   Future<void> _startStreaming() async {
     // ✨ ПРОБУЕМ ПОЛНЫЙ РЕЖИМ (60 bytes) - ВСЕ ДАТЧИКИ!
-    Logger.info('═══ ATTEMPTING FULL MODE (60 bytes) ═══');
+    Logger.info('═══ ATTEMPTING FULL MODE (60 bytes) ═══', pinned: true);
     var success = await _bleService.startComprehensiveStreaming(); // TEMP/PRESS версия
     
     if (!success) {
@@ -152,11 +152,11 @@ class _StreamingScreenState extends State<StreamingScreen> {
     }
     
     if (!success) {
-      Logger.error('❌ ALL MODES FAILED!');
+      Logger.error('❌ ALL MODES FAILED!', null, true); // pinned error
       return;
     }
     
-    Logger.success('🎉 STREAMING STARTED SUCCESSFULLY!');
+    Logger.success('🎉 STREAMING STARTED SUCCESSFULLY!', pinned: true);
 
     if (success && mounted) {
       setState(() {
