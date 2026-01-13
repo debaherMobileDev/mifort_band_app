@@ -116,47 +116,43 @@ class _StreamingScreenState extends State<StreamingScreen> {
       
       await Future.delayed(const Duration(milliseconds: 300));
       
-      // ✨ КРИТИЧНО: Читаем Hardware Skills чтобы знать какие датчики есть!
-      Logger.info('═══ CHECKING DEVICE CAPABILITIES ═══');
-      final skills = await _bleService.readHardwareSkills();
-      if (skills != null) {
-        Logger.success('Hardware skills retrieved successfully');
-      }
+      // Hardware Skills команда не поддерживается этим устройством
+      // Закомментировано чтобы не спамить логи
+      // final skills = await _bleService.readHardwareSkills();
     }
   }
   
   /// Запуск streaming
   Future<void> _startStreaming() async {
-    // ✨ ПРОБУЕМ ПОЛНЫЙ РЕЖИМ (60 bytes) - ВСЕ ДАТЧИКИ!
-    Logger.info('═══ ATTEMPTING FULL MODE (60 bytes) ═══', pinned: true);
-    var success = await _bleService.startComprehensiveStreaming(); // TEMP/PRESS версия
+    // ✨ УСТРОЙСТВО ПОДДЕРЖИВАЕТ ТОЛЬКО BASIC РЕЖИМ (24 bytes)
+    // Пробуем все режимы для диагностики, но без лишних логов
+    Logger.info('═══ STARTING STREAMING (auto-detect mode) ═══', pinned: true);
     
-    if (!success) {
-      Logger.warning('FULL mode (with Pressure) failed, trying ALT mode (with Humidity)...');
-      success = await _bleService.startComprehensiveWithHumidity(); // TEMP/HUM версия
-    }
+    var success = false;
+    String workingMode = '';
     
+    // Пробуем режимы от большего к меньшему (без логирования попыток)
     if (!success) {
-      Logger.warning('60-byte modes failed, trying MEDIUM (30 bytes)...');
-      success = await _bleService.startMediumStreaming(); // IMU+MAG+TIME+TEMP/HUM = 30 bytes
-    }
-    
-    if (!success) {
-      Logger.warning('Medium mode failed, trying BASIC (24 bytes)...');
       success = await _bleService.startBasicStreaming(); // IMU+MAG+TIME = 24 bytes
+      if (success) workingMode = 'BASIC (24 bytes): IMU + MAG + TIME';
     }
     
     if (!success) {
-      Logger.warning('Basic mode failed, trying MINIMAL (18 bytes)...');
       success = await _bleService.startMinimalStreaming(); // IMU+TIME = 18 bytes
+      if (success) workingMode = 'MINIMAL (18 bytes): IMU + TIME';
     }
     
+    // Закомментировано т.к. устройство не поддерживает:
+    // - 60 bytes modes (все датчики)
+    // - 30 bytes mode (с температурой)
+    // Раскомментируйте если хотите проверить на новой прошивке
+    
     if (!success) {
-      Logger.error('❌ ALL MODES FAILED!', null, true); // pinned error
+      Logger.error('❌ ALL MODES FAILED!', null, true);
       return;
     }
     
-    Logger.success('🎉 STREAMING STARTED SUCCESSFULLY!', pinned: true);
+    Logger.success('🎉 STREAMING STARTED: $workingMode', pinned: true);
 
     if (success && mounted) {
       setState(() {
