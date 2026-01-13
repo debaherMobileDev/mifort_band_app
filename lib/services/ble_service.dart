@@ -428,24 +428,32 @@ class BleService {
     return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
   }
 
+  // Счётчик буферов для логирования
+  int _bufferCounter = 0;
+
   /// Handle incoming sensor data
   void _handleSensorData(List<int> data) {
     try {
-      Logger.debug('══════════════════════════════════');
-      Logger.debug('📦 Received sensor data BUFFER');
-      Logger.debug('   Buffer Length: ${data.length} bytes');
-      Logger.debug('   Mode: 0x${_currentAcquisitionMode.toRadixString(16)}');
+      _bufferCounter++;
+      
+      // Логируем только каждый 25-й буфер
+      final shouldLog = (_bufferCounter % 25 == 0);
+      
+      if (shouldLog) {
+        Logger.info('📦 Buffer #$_bufferCounter: ${data.length} bytes');
+      }
       
       // Calculate packet size
       final packetSize = _calculatePacketSize(_currentAcquisitionMode);
-      Logger.debug('   Packet Size: $packetSize bytes');
       
       // В BUFFERED MODE буфер содержит НЕСКОЛЬКО пакетов!
       // Data Characteristic = 128 bytes, но используется только 120 bytes
       final usableBufferSize = data.length > 120 ? 120 : data.length;
       final numPackets = (usableBufferSize / packetSize).floor();
       
-      Logger.info('📊 BUFFERED MODE: $numPackets packets in buffer');
+      if (shouldLog) {
+        Logger.info('  Mode: 0x${_currentAcquisitionMode.toRadixString(16)}, Packet: $packetSize bytes, Count: $numPackets');
+      }
       
       // Парсим ВСЕ пакеты в буфере
       for (int i = 0; i < numPackets; i++) {
@@ -455,11 +463,8 @@ class BleService {
         if (end <= data.length) {
           final packet = data.sublist(start, end);
           
-          // Показываем детальные логи только для ПЕРВОГО пакета
-          final showDetails = (i == 0);
-          if (showDetails) {
-            Logger.debug('   → Parsing packet ${i + 1}/$numPackets (offset: $start)');
-          }
+          // Показываем детальные логи только для первого пакета каждого 25-го буфера
+          final showDetails = shouldLog && (i == 0);
           
           final sensorData = SensorDataParser.parsePacket(
             packet, 
@@ -470,7 +475,9 @@ class BleService {
         }
       }
       
-      Logger.success('✓ All $numPackets packets parsed and sent to UI');
+      if (shouldLog) {
+        Logger.success('✓ Buffer #$_bufferCounter processed: $numPackets packets');
+      }
     } catch (e, stackTrace) {
       Logger.error('✗ PARSING ERROR!', e);
       Logger.debug('Stack trace: $stackTrace');

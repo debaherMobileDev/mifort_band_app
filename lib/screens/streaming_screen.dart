@@ -56,6 +56,10 @@ class _StreamingScreenState extends State<StreamingScreen> {
   
   /// Автоматический запуск streaming при открытии экрана
   Future<void> _autoStartStreaming() async {
+    // ═══════════════════════════════════════════════
+    Logger.info('🚀 APP VERSION: 2.0 - FULL SENSOR SUPPORT');
+    Logger.info('═══════════════════════════════════════════');
+    
     // ✅ ВЫЗЫВАЕМ discoverServices() т.к. пользователь приходит СРАЗУ из ScanScreen!
     // (DeviceScreen пропускается в текущем флоу)
     final servicesFound = await _bleService.discoverServices();
@@ -166,17 +170,29 @@ class _StreamingScreenState extends State<StreamingScreen> {
   void _setupDataListener() {
     Logger.info('Setting up data listener for streaming screen...');
     _dataSubscription = _bleService.sensorDataStream.listen((data) {
-      Logger.info('🎯 UI: Received sensor data in StreamingScreen');
-      Logger.debug('  Has Gyro: ${data.gyroscope != null}');
-      Logger.debug('  Has Accel: ${data.accelerometer != null}');
-      Logger.debug('  Has Mag: ${data.magnetometer != null}');
-      Logger.debug('  Has Time: ${data.timestamp != null}');
+      // ✨ Логируем только каждый 50-й пакет, чтобы не спамить
+      final shouldLog = (_packetsReceived % 50 == 0);
+      
+      if (shouldLog) {
+        Logger.info('📊 UI Update #$_packetsReceived');
+        Logger.debug('  Gyro: ${data.gyroscope != null ? "✓" : "✗"}');
+        Logger.debug('  Accel: ${data.accelerometer != null ? "✓" : "✗"}');
+        Logger.debug('  Mag: ${data.magnetometer != null ? "✓" : "✗"}');
+        Logger.debug('  HDR: ${data.hdrAccelerometer != null ? "✓" : "✗"}');
+        Logger.debug('  Quat: ${data.orientation != null ? "✓" : "✗"}');
+        Logger.debug('  Time: ${data.timestamp != null ? "✓" : "✗"}');
+        Logger.debug('  Temp: ${data.temperature != null ? "✓" : "✗"}');
+        Logger.debug('  Humidity: ${data.humidity != null ? "✓" : "✗"}');
+        Logger.debug('  Pressure: ${data.pressure != null ? "✓" : "✗"}');
+        Logger.debug('  Light: ${data.lightIntensity != null ? "✓" : "✗"}');
+        Logger.debug('  Range: ${data.range != null ? "✓" : "✗"}');
+        Logger.debug('  MAD: ${data.madLevel != null ? "✓" : "✗"}');
+      }
       
       if (mounted) {
         setState(() {
           _latestData = data;
           _packetsReceived++;
-          Logger.success('✓ UI Updated! Total packets: $_packetsReceived');
         });
       } else {
         Logger.warning('⚠️ UI not mounted, skipping update');
