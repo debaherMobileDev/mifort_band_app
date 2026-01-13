@@ -13,7 +13,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     
     <application
-        android:label="mifort_band_app"
+        android:label="Beta app Muse V3"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
